@@ -15,7 +15,7 @@ let
   # insecure to use**.
   # So, for now, we have an implementation details-y way of producing an
   # encrypted rootfs.
-  encryptedRootfs = pkgs.vmTools.runInLinuxVM (
+  encryptedRootfs =
     pkgs.runCommand "encrypted-rootfs" {
       buildInputs = [ pkgs.cryptsetup ];
       passthru = {
@@ -23,32 +23,39 @@ let
         filesystemType = "LUKS";
       };
     } ''
-      (PS4=" $ "; set -x
-      mkdir -p /run/cryptsetup
-      mkdir -p $out
-      cd $out
+    mkdir -p $out
 
-      slack=32 # MiB
+    export slack=32 # MiB
 
-      # Some slack space we'll append to the raw fs
-      # Used by `--reduce-device-size` read cryptsetup(8).
-      dd if=/dev/zero of=tmp.img bs=1024 count=$((slack*1024))
+    # Some slack space we'll append to the raw fs
+    # Used by `--reduce-device-size` read cryptsetup(8).
+    dd if=/dev/zero of=/tmp/slack.img bs=1024 count=$((slack*1024))
 
-      # Catting both to ensure it's writable, and to add some slack space at
-      # the end
-      cat ${rootfsExt4}/${rootfsExt4.label}.img tmp.img > encrypted.img
-      rm tmp.img
+    # Catting both to ensure it's writable, and to add some slack space at
+    # the end
+    cat ${rootfsExt4}/${rootfsExt4.label}.img /tmp/slack.img > /tmp/encrypted.img
+    rm /tmp/slack.img
 
-      echo ${builtins.toJSON passphrase} | cryptsetup \
-        reencrypt \
-        --encrypt ./encrypted.img \
-        --reduce-device-size $((slack*1024*1024))
+    ${pkgs.bubblewrap}/bin/bwrap \
+      --ro-bind /nix/store /nix/store \
+      --dev-bind /dev/random /dev/random \
+      --dev-bind /dev/urandom /dev/urandom \
+      --tmpfs /run/cryptsetup \
+      --bind /tmp/encrypted.img /tmp/encrypted.img \
+      ${pkgs.bash}/bin/bash -c '
+        ${pkgs.coreutils}/bin/echo ${
+          builtins.toJSON passphrase
+        } | ${pkgs.cryptsetup}/bin/cryptsetup reencrypt \
+          --encrypt /tmp/encrypted.img \
+          --reduce-device-size $((slack*1024*1024))
 
-      #echo YES |
-      cryptsetup luksUUID --uuid=${builtins.toJSON uuid} ./encrypted.img
-      )
-    ''
-  );
+        ${pkgs.cryptsetup}/bin/cryptsetup luksUUID \
+          --uuid=${builtins.toJSON uuid} \
+          /tmp/encrypted.img
+      '
+
+    mv /tmp/encrypted.img $out/
+    '';
 in
 
 {
