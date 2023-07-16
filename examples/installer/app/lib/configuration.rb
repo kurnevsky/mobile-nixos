@@ -319,7 +319,8 @@ EOF
 fileSystems = {
   "/" = {
     device = "/dev/disk/by-uuid/#{@configuration[:filesystems][:rootfs][:uuid]}";
-    fsType = "ext4";
+    fsType = "btrfs";
+    options = [ "noatime" "nodiratime" "compress=zstd:3" ];
   };
 };
 EOF

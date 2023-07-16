@@ -38,6 +38,21 @@ module Helpers
     end
   end
 
+  class Btrfs < Base
+    def self.format(path, uuid:, label:)
+      cmd = ["mkfs.btrfs"]
+      cmd << "-f"
+      cmd << path
+      cmd.concat(["-L", label])
+      cmd.concat(["-U", uuid])
+      run(*cmd)
+    end
+
+    def self.mount(source, target)
+      run("mount", "-o", "noatime,nodiratime,compress=zstd", source, target)
+    end
+  end
+
   class LUKS < Base
     def self.format(path, uuid:, passphrase:, label: nil)
       cmd = ["cryptsetup"]
@@ -271,7 +286,7 @@ if do_formatting
   puts "Formatting rootfs..."
   puts ""
 
-  Helpers::Ext4.format(
+  Helpers::Btrfs.format(
     rootfs_partition,
     uuid: configuration["filesystems"]["rootfs"]["uuid"],
     label: configuration["filesystems"]["rootfs"]["label"]
@@ -279,4 +294,4 @@ if do_formatting
 end
 
 Dir.mkdir(MOUNT_POINT) unless Dir.exist?(MOUNT_POINT)
-Helpers::Ext4.mount(rootfs_partition, MOUNT_POINT)
+Helpers::Btrfs.mount(rootfs_partition, MOUNT_POINT)
