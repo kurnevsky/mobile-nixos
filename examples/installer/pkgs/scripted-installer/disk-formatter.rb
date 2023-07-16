@@ -201,7 +201,7 @@ puts "Working on '#{disk_param}' → '#{disk}'"
 #
 
 # Partition count, to track the location of the last one, the rootfs.
-partition_count = 5
+partition_count = 3
 partition_count += 1 if $system_type == "depthcharge"
 
 if do_partitioning then
@@ -223,10 +223,6 @@ if do_partitioning then
     Helpers::GPT.add_partition(disk, size: 256 * 1024 * 1024, partlabel: "boot", type: "8DA63339-0007-60C0-C436-083AC8230908", bootable: true)
   end
 
-  # Reserved for future use as a BCB, if ever implemented (e.g. ask bootloader app or recovery app to do something)
-  Helpers::GPT.add_partition(disk, size:  1 * 1024 * 1024, partlabel: "misc",    type: "EF32A33B-A409-486C-9141-9FFB711F6266")
-  # Reserved for future use to "persist" data, if ever deemed useful (e.g. timezone, "last known RTC time" and such)
-  Helpers::GPT.add_partition(disk, size: 16 * 1024 * 1024, partlabel: "persist", type: "EBC597D0-2053-4B15-8B64-E0AAC75F4DB1")
   # Reserved for `pstore-blk`
   Helpers::GPT.add_partition(disk, size: 15 * 1024 * 1024, partlabel: "pstore",  type: "989411FC-DFDF-40DE-9C6C-977218B794E7", uuid: "989411FC-DFDF-40DE-9C6C-977218B794E7")
   # Rootfs partition, will be formatted and mounted as needed

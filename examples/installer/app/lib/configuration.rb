@@ -161,9 +161,8 @@ class Configuration::NixOSConfiguration
 
   def luks_name(part)
     [
-      "LUKS",
-      @configuration[:info][:hostname].upcase.gsub(/[-_.]/, "-"),
-      part.upcase,
+      part,
+      "luks"
     ].join("-")
   end
 
@@ -217,9 +216,6 @@ EOF
 # Use Network Manager
 networking.wireless.enable = false;
 networking.networkmanager.enable = true;
-
-# Use PulseAudio
-hardware.pulseaudio.enable = true;
 
 # Enable Bluetooth
 hardware.bluetooth.enable = true;
@@ -330,6 +326,7 @@ fragments << <<EOF
 boot.initrd.luks.devices = {
   #{luks_name("rootfs").to_json} = {
     device = "/dev/disk/by-uuid/#{@configuration[:filesystems][:luks][:uuid]}";
+    allowDiscards = true;
   };
 };
 EOF
