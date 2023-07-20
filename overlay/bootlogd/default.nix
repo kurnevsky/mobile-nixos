@@ -7,8 +7,8 @@ stdenv.mkDerivation {
   src = fetchFromGitHub {
     owner = "mobile-nixos";
     repo = "bootlogd";
-    rev = "e5af793da15def578eb3b25cb2c02196267021b1";
-    sha256 = "0m6y1369xs8hds66q5z2bxd80vxwnkqsnppmkfqk6i1d2259i903";
+    rev = "8ae8710cba23509e72adc37d4d52856953e50193";
+    sha256 = "";
   };
 
   sourceRoot = "source/src";
