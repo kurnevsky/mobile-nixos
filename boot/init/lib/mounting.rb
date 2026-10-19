@@ -84,7 +84,10 @@ module Mounting
     auto_depend_mount_points(mount_points)
 
     (Configuration["luksDevices"] or []).each do |mapper, info|
-      Tasks::Luks.new(info["device"], mapper, info)
+      luks_task = Tasks::Luks.new(info["device"], mapper, info)
+      # Unlock all LUKS devices before switching root, not only those backing
+      # stage-1 mount points, so stage-2 can use the remaining ones.
+      Targets[:SwitchRoot].add_dependency(:Task, luks_task)
     end
   end
 
