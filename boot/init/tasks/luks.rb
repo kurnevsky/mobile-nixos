@@ -23,6 +23,16 @@ class Tasks::Luks < Task
     @registry
   end
 
+  # Passphrases that successfully unlocked a device, tried first on the
+  # following devices when passphrase reuse is enabled.
+  def self.passphrases()
+    @passphrases ||= []
+  end
+
+  def self.reuse_passphrases?()
+    !!Configuration["luksReusePassphrases"]
+  end
+
   def initialize(source, mapper, info)
     @source = source
     @mapper = mapper
@@ -74,30 +84,42 @@ class Tasks::Luks < Task
     self.class.register(@mapper, self)
   end
 
+  def unlock(passphrase)
+    Progress.exec_with_message("Checking...") do
+      args = [
+        "luksOpen",
+        source,
+        mapper,
+        *@cryptsetup_args,
+      ]
+      # TODO: implement with process redirection rather than shelling out
+      System.run("echo #{passphrase.shellescape} | exec cryptsetup #{args.shelljoin}")
+    end
+    true
+  rescue System::CommandError
+    false
+  end
+
   def run()
     FileUtils.mkdir_p("/run/cryptsetup")
+
+    if self.class.reuse_passphrases? && self.class.passphrases.any? { |passphrase| unlock(passphrase) }
+      Progress.update({label: nil})
+      return
+    end
 
     TRIES.times do
       passphrase = Progress.ask("Passphrase for #{mapper}")
 
-      begin
-        Progress.exec_with_message("Checking...") do
-          args = [
-            "luksOpen",
-            source,
-            mapper,
-            *@cryptsetup_args,
-          ]
-          # TODO: implement with process redirection rather than shelling out
-          System.run("echo #{passphrase.shellescape} | exec cryptsetup #{args.shelljoin}")
-        end
+      if unlock(passphrase)
+        self.class.passphrases << passphrase if self.class.reuse_passphrases?
         Progress.update({label: nil})
 
         # If we're there, we're done!
         return
-      rescue System::CommandError
-        Progress.update({label: "Wrong passphrase given..."})
       end
+
+      Progress.update({label: "Wrong passphrase given..."})
     end
 
     # We failed multiple times.
